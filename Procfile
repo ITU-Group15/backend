@@ -1,1 +1,1 @@
-web: channelx.go -port=$PORT
+web: channelx -port=$PORT

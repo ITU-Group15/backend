@@ -1,0 +1,44 @@
+{
+	"ImportPath": "channelx",
+	"GoVersion": "go1.8",
+	"GodepVersion": "v79",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/codegangsta/negroni",
+			"Comment": "v0.2.0-127-g3444e69",
+			"Rev": "3444e69ea1ef03a77998d11fc56e7f0a34f7213c"
+		},
+		{
+			"ImportPath": "github.com/dgrijalva/jwt-go",
+			"Comment": "v3.0.0-20-ga539ee1",
+			"Rev": "a539ee1a749a2b895533f979515ac7e6e0f5b650"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Comment": "v1.4.0-13-gac112f7",
+			"Rev": "ac112f7d75a0714af1bd86ab17749b31f7809640"
+		},
+		{
+			"ImportPath": "github.com/jinzhu/gorm",
+			"Comment": "v1.0-164-g6f64b86",
+			"Rev": "6f64b8610da6d5214e9197ed3c1bf8ecf8983c89"
+		},
+		{
+			"ImportPath": "github.com/jinzhu/inflection",
+			"Rev": "1c35d901db3da928c72a72d8458480cc9ade058f"
+		},
+		{
+			"ImportPath": "github.com/lib/pq",
+			"Comment": "go1.0-cutoff-173-gdd1fe20",
+			"Rev": "dd1fe2071026ce53f36a39112e645b4d4f5793a4"
+		},
+		{
+			"ImportPath": "github.com/lib/pq/oid",
+			"Comment": "go1.0-cutoff-173-gdd1fe20",
+			"Rev": "dd1fe2071026ce53f36a39112e645b4d4f5793a4"
+		}
+	]
+}
