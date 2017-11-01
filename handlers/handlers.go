@@ -36,6 +36,12 @@ type LoginErrorHandler struct{
 	Context ContextStruct	`json:"context,omitempty"`
 }
 
+type ErrorHandlerArray struct{
+	ErrorMessage string	 	`json:"message"`
+	ErrorCode int 			`json:"code"`
+	Users[] User	`json:"context,omitempty"`
+}
+
 
 type User struct {
 	UserID uint64					`json:"userID,omitempty" gorm:"primary_key"`
@@ -175,4 +181,11 @@ func LoginFunc(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(jsonResp))
 }
 
-
+func GetUsers(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var checkError ErrorHandlerArray
+	tools.DB.Find(&checkError.Users)
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}

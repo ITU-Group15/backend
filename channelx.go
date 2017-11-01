@@ -17,7 +17,7 @@ func main() {
 
 	router.HandleFunc("/login", handlers.LoginFunc)
 	router.HandleFunc("/register", handlers.RegisterFunc)
-
+	router.HandleFunc("/getusers", handlers.GetUsers)
 
 
 
