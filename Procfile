@@ -1,1 +1,1 @@
-web: channelbapd -port=$PORT
+web: channelx -port=$PORT
