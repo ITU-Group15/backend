@@ -1,22 +1,23 @@
 package handlers
 
 import (
+	"fmt"
+	"net/http"
+	"log"
+	"encoding/json"
+	"channelx/tools"
+	_ "github.com/lib/pq"
+	//_ "github.com/jinzhu/gorm/dialects/postgres"
+	jwt "github.com/dgrijalva/jwt-go"
+	"io/ioutil"
+	"github.com/dgrijalva/jwt-go/request"
 	"crypto/rsa"
 	"time"
-	"io/ioutil"
-	"channelx/tools"
-	jwt "github.com/dgrijalva/jwt-go"
-	_ "github.com/lib/pq"
-
-	"net/http"
-	"encoding/json"
-	"fmt"
-	"log"
 )
 
 const (
-	privKeyPath = "orangenotes/demo"     // openssl genrsa -out app.rsa keysize
-	pubKeyPath  = "orangenotes/demo.pub"
+	privKeyPath = "channelx/demo"     // openssl genrsa -out app.rsa keysize
+	pubKeyPath  = "channelx/demo.pub"
 )
 
 var (
@@ -27,10 +28,10 @@ var (
 
 
 type ContextStruct struct{
-	JwtToken	string 		`json:"jwtToken"`
+	JwtToken	string 		`json:"jwtToken,omitempty"`
 }
 
-type LoginErrorHandler struct{
+type ErrorHandler struct{
 	ErrorMessage string	 	`json:"message"`
 	ErrorCode int 			`json:"code"`
 	Context ContextStruct	`json:"context,omitempty"`
@@ -39,7 +40,7 @@ type LoginErrorHandler struct{
 type ErrorHandlerArray struct{
 	ErrorMessage string	 	`json:"message"`
 	ErrorCode int 			`json:"code"`
-	Users[] User	`json:"context,omitempty"`
+	Users[] User			`json:"context,omitempty"`
 }
 
 
@@ -67,13 +68,30 @@ func init() {
 func (User) TableName() string{
 	return "users"
 }
+func AuthMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	w.Header().Set("Content-Type", "application/json")
+	var checkError ErrorHandler
+	token, err := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	if err == nil && token.Valid {
+		next(w, r)
+	} else {
+		w.WriteHeader(http.StatusUnauthorized)
+		checkError.ErrorMessage="Token Failure"
+		checkError.ErrorCode = 5
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprint(w, string(jsonResp))
+	}
+}
+
 
 
 func RegisterFunc(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var (
 		requestingUser User
-		checkError LoginErrorHandler
+		checkError     ErrorHandler
 	)
 	if err = json.NewDecoder(r.Body).Decode(&requestingUser); err != nil{
 		w.WriteHeader(http.StatusBadRequest)
@@ -129,7 +147,7 @@ func LoginFunc(w http.ResponseWriter, r *http.Request) {
 	var (
 		userInput      User
 		userToken      uint64
-		checkError     LoginErrorHandler
+		checkError     ErrorHandler
 		requestingUser User
 	)
 	if err = json.NewDecoder(r.Body).Decode(&userInput); err != nil {
@@ -160,7 +178,7 @@ func LoginFunc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestingUser.Username == userInput.Username && userInput.Password == requestingUser.Password {
-		var checkLoginError LoginErrorHandler
+		var checkLoginError ErrorHandler
 		userToken = requestingUser.UserID
 		token := jwt.New(jwt.GetSigningMethod("RS256"))
 		claims := token.Claims.(jwt.MapClaims)

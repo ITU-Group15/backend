@@ -13,8 +13,13 @@
 		},
 		{
 			"ImportPath": "github.com/dgrijalva/jwt-go",
-			"Comment": "v3.0.0-20-ga539ee1",
-			"Rev": "a539ee1a749a2b895533f979515ac7e6e0f5b650"
+			"Comment": "v3.1.0",
+			"Rev": "dbeaa9332f19a944acb5736b4456cfcc02140e29"
+		},
+		{
+			"ImportPath": "github.com/dgrijalva/jwt-go/request",
+			"Comment": "v3.1.0",
+			"Rev": "dbeaa9332f19a944acb5736b4456cfcc02140e29"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",

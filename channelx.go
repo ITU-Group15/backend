@@ -17,8 +17,7 @@ func main() {
 
 	router.HandleFunc("/login", handlers.LoginFunc)
 	router.HandleFunc("/register", handlers.RegisterFunc)
-	router.HandleFunc("/getusers", handlers.GetUsers)
-
+	router.Handle("/getusers", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.GetUsers))))
 
 
 	n.UseHandler(router)
