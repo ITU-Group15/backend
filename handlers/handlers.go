@@ -13,6 +13,8 @@ import (
 	"github.com/dgrijalva/jwt-go/request"
 	"crypto/rsa"
 	"time"
+	"github.com/jinzhu/gorm"
+	"os/user"
 )
 
 const (
@@ -43,10 +45,17 @@ type ErrorHandlerArray struct{
 	Users[] User			`json:"context,omitempty"`
 }
 
+type Channel struct{
+	ChannelID uint64				`json:"channelID,omitempty" gorm:"primary_key"`
+	CreatedAt time.Time				`json:"createdAt"`
+	UpdatedAt time.Time				`json:"updatedAt,omitemtpy"`
+	DeletedAt *time.Time			`json:"-"`
+	ChannelName string 				`json:"channelName"`
+	UserID uint64					`json:"ownerID"`
+}
 
 type User struct {
 	UserID uint64					`json:"userID,omitempty" gorm:"primary_key"`
-	//gorm.Model
 	CreatedAt time.Time				`json:"createdAt"`
 	UpdatedAt time.Time				`json:"updatedAt,omitemtpy"`
 	DeletedAt *time.Time			`json:"-"`
@@ -57,17 +66,37 @@ type User struct {
 	RealSurname	string				`json:"realsurname,omitempty"`
 }
 
+type ChannelMembers struct {
+	UserID uint64					`gorm:"primary_key"`
+	ChannelID uint64				`gorm:"primary_key"`
+}
+
+type Message struct{
+	gorm.Model
+	ChannelID uint64				`json:"channelID"`
+	UserID uint64					`json:"userID"`
+	Message string					`json:"message"`
+}
+
+
 func init() {
 	privateByte, _ := ioutil.ReadFile("demo.rsa")
 	publicByte, _ := ioutil.ReadFile("demo.rsa.pub")
 	privateKey, _ = jwt.ParseRSAPrivateKeyFromPEM(privateByte)
 	publicKey, _ = jwt.ParseRSAPublicKeyFromPEM(publicByte)
 	tools.DB.CreateTable(&User{})
+	tools.DB.CreateTable(&Channel{})
+	tools.DB.CreateTable(&Message{})
 }
 
 func (User) TableName() string{
 	return "users"
 }
+
+func (ChannelMembers) TableName() string{
+	return "channel_members"
+}
+
 func AuthMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	w.Header().Set("Content-Type", "application/json")
 	var checkError ErrorHandler
@@ -84,8 +113,6 @@ func AuthMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFun
 		fmt.Fprint(w, string(jsonResp))
 	}
 }
-
-
 
 func RegisterFunc(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -203,6 +230,58 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var checkError ErrorHandlerArray
 	tools.DB.Find(&checkError.Users)
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}
+
+func JoinChannel(w http.ResponseWriter, r * http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	token, _ := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	var checkError ErrorHandler
+	var userInput Channel
+	if err = json.NewDecoder(r.Body).Decode(&userInput); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if userInput.ChannelID <= 0{
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorMessage = "ChannelID required"
+		checkError.ErrorCode = 2
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if len(userInput.ChannelName) > 0 || userInput.UserID > 0{
+		w.WriteHeader(http.StatusUnauthorized)
+		checkError.ErrorMessage = "Unauthorized request"
+		checkError.ErrorCode = 2
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	temp := ChannelMembers{}
+	temp.UserID = uint64(claims["userID"].(float64))
+	temp.ChannelID = userInput.ChannelID
+
+	if err := tools.DB.Create(&temp).Error; err != nil{
+		w.WriteHeader(http.StatusServiceUnavailable)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	checkError.ErrorCode=0
+	checkError.ErrorMessage="success"
 	jsonResp, _ := json.Marshal(checkError)
 	fmt.Fprintf(w, string(jsonResp))
 	return
