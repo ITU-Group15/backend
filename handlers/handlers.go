@@ -14,7 +14,6 @@ import (
 	"crypto/rsa"
 	"time"
 	"github.com/jinzhu/gorm"
-	"os/user"
 )
 
 const (
