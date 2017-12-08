@@ -283,8 +283,8 @@ func CreateChannel(w http.ResponseWriter, r * http.Request){
 	}
 	var temp ChannelMembers
 	temp.ChannelID = channelInput.ChannelID
-	temp.UserID = channelInput.UserID
-	
+	temp.UserID = uint64(claims["userID"].(float64))
+
 	if err := tools.DB.Create(&temp).Error; err!=nil{
 		w.WriteHeader(http.StatusServiceUnavailable)
 		checkError.ErrorCode=3
