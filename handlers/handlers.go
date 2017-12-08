@@ -52,7 +52,7 @@ type Channel struct{
 	ChannelName string 				`json:"channelName"`
 	UserID uint64					`json:"ownerID"`
 	IsPrivate bool					`json:"isPrivate"`
-	Password string					`json:"-"`
+	Password string					`json:"password"`
 }
 
 type User struct {
