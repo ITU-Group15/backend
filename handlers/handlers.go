@@ -44,6 +44,11 @@ type ErrorHandlerArray struct{
 	ErrorCode int 			`json:"code"`
 	Users[] User			`json:"context,omitempty"`
 }
+type ErrorHandlerMessageArray struct{
+	ErrorMessage string	 	`json:"message"`
+	ErrorCode int 			`json:"code"`
+	Messages[] Message			`json:"context,omitempty"`
+}
 
 type Channel struct{
 	ChannelID uint64				`json:"channelID,omitempty" gorm:"primary_key"`
@@ -371,6 +376,101 @@ func JoinChannel(w http.ResponseWriter, r * http.Request){
 	w.WriteHeader(http.StatusOK)
 	checkError.ErrorCode=0
 	checkError.ErrorMessage="success"
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}
+
+func SendMessage(w http.ResponseWriter, r * http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	token, _ := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	var messageInput Message
+	var checkError ErrorHandler
+	if err = json.NewDecoder(r.Body).Decode(&messageInput); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+
+	/*
+
+	IF STATEMENTLAR EKSİK
+
+	*/
+	messageInput.UserID = uint64(claims["userID"].(float64))
+
+	var temp ChannelMembers
+	temp.UserID = messageInput.UserID
+	temp.ChannelID = messageInput.ChannelID
+
+	if err := tools.DB.First(&temp).Error; err != nil{
+		w.WriteHeader(http.StatusServiceUnavailable)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa")
+	fmt.Println(temp.ChannelID)
+	fmt.Println(temp.UserID)
+	if err := tools.DB.Create(&messageInput).Error; err != nil{
+		w.WriteHeader(http.StatusServiceUnavailable)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	checkError.ErrorCode=0
+	checkError.ErrorMessage="success"
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}
+
+func GetMessages(w http.ResponseWriter, r * http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	token, _ := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	var messageInput Message
+	var checkError ErrorHandlerMessageArray
+	var msgArray []Message
+	/*
+
+	IF STATEMENTLAR EKSİK
+
+	*/
+	if err = json.NewDecoder(r.Body).Decode(&messageInput); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	messageInput.UserID = uint64(claims["userID"].(float64))
+	if err := tools.DB.Where("user_id = ? AND channel_id = ?", messageInput.UserID, messageInput.ChannelID).Find(&msgArray).Error; err!=nil{
+		w.WriteHeader(http.StatusServiceUnavailable)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	checkError.ErrorCode=0
+	checkError.ErrorMessage="success"
+	checkError.Messages = msgArray
 	jsonResp, _ := json.Marshal(checkError)
 	fmt.Fprintf(w, string(jsonResp))
 	return
