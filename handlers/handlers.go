@@ -14,6 +14,7 @@ import (
 	"crypto/rsa"
 	"time"
 	"github.com/jinzhu/gorm"
+	"github.com/lib/pq"
 )
 
 const (
@@ -52,7 +53,10 @@ type Channel struct{
 	ChannelName string 				`json:"channelName"`
 	UserID uint64					`json:"ownerID"`
 	IsPrivate bool					`json:"isPrivate"`
-	Password string					`json:"password	"`
+	Password string					`json:"password"`
+	AvailableDays pq.StringArray 	`json:"availableDays" gorm:"type:varchar(10)[]"`
+	StartTime time.Time				`json:"-"`
+	EndTime time.Time				`json:"-"`
 }
 
 type User struct {
@@ -244,8 +248,13 @@ func CreateChannel(w http.ResponseWriter, r * http.Request){
 		return publicKey, nil
 	})
 	var checkError ErrorHandler
+	var finalChannelInput Channel
 	claims := token.Claims.(jwt.MapClaims)
-	var channelInput Channel
+	var channelInput struct{
+		Channel
+		Start_Time	string	`json:"startTime"`
+		End_Time string		`json:"endTime"`
+	}
 	if err = json.NewDecoder(r.Body).Decode(&channelInput); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		checkError.ErrorCode = 2
@@ -273,8 +282,21 @@ func CreateChannel(w http.ResponseWriter, r * http.Request){
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
-	channelInput.UserID = uint64(claims["userID"].(float64))
-	if err := tools.DB.Create(&channelInput).Error; err!=nil{
+	fmt.Println(channelInput.Start_Time)
+
+	channelInput.Start_Time = "1970-01-01T" + channelInput.Start_Time + ":00+03:00"
+	channelInput.End_Time = "1970-01-01T" + channelInput.End_Time + ":00+03:00"
+
+	finalChannelInput.StartTime, _ = time.Parse(time.RFC3339, channelInput.Start_Time)
+	finalChannelInput.EndTime, _ = time.Parse(time.RFC3339, channelInput.End_Time)
+	fmt.Println(finalChannelInput.StartTime)
+	finalChannelInput.ChannelName=channelInput.ChannelName
+	finalChannelInput.UserID = uint64(claims["userID"].(float64))
+	finalChannelInput.Password = channelInput.Password
+	finalChannelInput.IsPrivate = channelInput.IsPrivate
+	finalChannelInput.AvailableDays = channelInput.AvailableDays
+
+	if err := tools.DB.Create(&finalChannelInput).Error; err!=nil{
 		w.WriteHeader(http.StatusServiceUnavailable)
 		checkError.ErrorCode=3
 		checkError.ErrorMessage=err.Error()
