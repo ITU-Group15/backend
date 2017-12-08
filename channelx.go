@@ -18,6 +18,8 @@ func main() {
 	router.HandleFunc("/login", handlers.LoginFunc)
 	router.HandleFunc("/register", handlers.RegisterFunc)
 	router.Handle("/getusers", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.GetUsers))))
+	router.Handle("/join", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.JoinChannel))))
+	router.Handle("/create", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.CreateChannel))))
 
 
 	n.UseHandler(router)

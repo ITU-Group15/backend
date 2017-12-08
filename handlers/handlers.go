@@ -51,6 +51,8 @@ type Channel struct{
 	DeletedAt *time.Time			`json:"-"`
 	ChannelName string 				`json:"channelName"`
 	UserID uint64					`json:"ownerID"`
+	IsPrivate bool					`json:"isPrivate"`
+	Password string					`json:"-"`
 }
 
 type User struct {
@@ -63,6 +65,7 @@ type User struct {
 	PhoneNumber string				`json:"phone,omitempty"`
 	RealName	string				`json:"realname,omitempty"`
 	RealSurname	string				`json:"realsurname,omitempty"`
+	Nickname string					`json:"nickname,omitempty"`
 }
 
 type ChannelMembers struct {
@@ -86,6 +89,7 @@ func init() {
 	tools.DB.CreateTable(&User{})
 	tools.DB.CreateTable(&Channel{})
 	tools.DB.CreateTable(&Message{})
+	tools.DB.CreateTable(&ChannelMembers{})
 }
 
 func (User) TableName() string{
@@ -234,15 +238,15 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func JoinChannel(w http.ResponseWriter, r * http.Request){
+func CreateChannel(w http.ResponseWriter, r * http.Request){
 	w.Header().Set("Content-Type", "application/json")
 	token, _ := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
 		return publicKey, nil
 	})
-	claims := token.Claims.(jwt.MapClaims)
 	var checkError ErrorHandler
-	var userInput Channel
-	if err = json.NewDecoder(r.Body).Decode(&userInput); err != nil {
+	claims := token.Claims.(jwt.MapClaims)
+	var channelInput Channel
+	if err = json.NewDecoder(r.Body).Decode(&channelInput); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		checkError.ErrorCode = 2
 		checkError.ErrorMessage = err.Error()
@@ -250,7 +254,70 @@ func JoinChannel(w http.ResponseWriter, r * http.Request){
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
-	if userInput.ChannelID <= 0{
+	if channelInput.ChannelID != 0 || len(channelInput.ChannelName) <= 0{
+		w.WriteHeader(http.StatusUnauthorized)
+		checkError.ErrorMessage = "missing input"
+		checkError.ErrorCode = 2
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if channelInput.IsPrivate != true{
+		channelInput.IsPrivate = false
+	}
+	if channelInput.IsPrivate == true && len(channelInput.Password) <= 0{
+		w.WriteHeader(http.StatusUnauthorized)
+		checkError.ErrorMessage = "password cannot be empty on private channels"
+		checkError.ErrorCode = 2
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if err := tools.DB.Create(&channelInput).Error; err!=nil{
+		w.WriteHeader(http.StatusServiceUnavailable)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	var temp ChannelMembers
+	temp.ChannelID = channelInput.ChannelID
+	temp.UserID = channelInput.UserID
+	
+	if err := tools.DB.Create(&temp).Error; err!=nil{
+		w.WriteHeader(http.StatusServiceUnavailable)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	checkError.ErrorCode=0
+	checkError.ErrorMessage="success"
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}
+
+func JoinChannel(w http.ResponseWriter, r * http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	token, _ := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	var checkError ErrorHandler
+	var channelInput Channel
+	if err = json.NewDecoder(r.Body).Decode(&channelInput); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if channelInput.ChannelID <= 0{
 		w.WriteHeader(http.StatusBadRequest)
 		checkError.ErrorMessage = "ChannelID required"
 		checkError.ErrorCode = 2
@@ -258,7 +325,7 @@ func JoinChannel(w http.ResponseWriter, r * http.Request){
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
-	if len(userInput.ChannelName) > 0 || userInput.UserID > 0{
+	if len(channelInput.ChannelName) > 0 || channelInput.UserID > 0{
 		w.WriteHeader(http.StatusUnauthorized)
 		checkError.ErrorMessage = "Unauthorized request"
 		checkError.ErrorCode = 2
@@ -268,7 +335,7 @@ func JoinChannel(w http.ResponseWriter, r * http.Request){
 	}
 	temp := ChannelMembers{}
 	temp.UserID = uint64(claims["userID"].(float64))
-	temp.ChannelID = userInput.ChannelID
+	temp.ChannelID = channelInput.ChannelID
 
 	if err := tools.DB.Create(&temp).Error; err != nil{
 		w.WriteHeader(http.StatusServiceUnavailable)
