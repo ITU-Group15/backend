@@ -52,7 +52,7 @@ type Channel struct{
 	ChannelName string 				`json:"channelName"`
 	UserID uint64					`json:"ownerID"`
 	IsPrivate bool					`json:"isPrivate"`
-	Password string					`json:"password"`
+	Password string					`json:"password	"`
 }
 
 type User struct {
@@ -273,6 +273,7 @@ func CreateChannel(w http.ResponseWriter, r * http.Request){
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
+	channelInput.UserID = uint64(claims["userID"].(float64))
 	if err := tools.DB.Create(&channelInput).Error; err!=nil{
 		w.WriteHeader(http.StatusServiceUnavailable)
 		checkError.ErrorCode=3
