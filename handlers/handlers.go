@@ -63,7 +63,7 @@ type Channel struct{
 	ChannelName string 				`json:"channelName"`
 	UserID uint64					`json:"ownerID"`
 	IsPrivate bool					`json:"isPrivate"`
-	Password string					`json:"-"`
+	Password string					`json:"password,omitempty"`
 	AvailableDays pq.StringArray 	`json:"availableDays" gorm:"type:varchar(10)[]"`
 	StartTime time.Time				`json:"startTime"`
 	EndTime time.Time				`json:"endTime"`
@@ -428,7 +428,7 @@ func GetChannels(w http.ResponseWriter, r * http.Request){
 				fmt.Fprintf(w, string(jsonResp))
 				return
 			}
-
+			chnl.Password = ""
 			checkError.Channels = append(checkError.Channels, chnl)
 		}
 		tx.Commit()
