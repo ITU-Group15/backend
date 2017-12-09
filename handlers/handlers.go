@@ -65,8 +65,8 @@ type Channel struct{
 	IsPrivate bool					`json:"isPrivate"`
 	Password string					`json:"password"`
 	AvailableDays pq.StringArray 	`json:"availableDays" gorm:"type:varchar(10)[]"`
-	StartTime time.Time				`json:"-"`
-	EndTime time.Time				`json:"-"`
+	StartTime time.Time				`json:"startTime"`
+	EndTime time.Time				`json:"endTime"`
 }
 
 type User struct {
