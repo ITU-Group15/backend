@@ -87,6 +87,7 @@ type Message struct{
 	ChannelID uint64				`json:"channelID"`
 	UserID uint64					`json:"userID"`
 	Message string					`json:"message"`
+	Username string 				`json:"nickname"`
 }
 
 
@@ -408,26 +409,37 @@ func SendMessage(w http.ResponseWriter, r * http.Request){
 	var temp ChannelMembers
 	temp.UserID = messageInput.UserID
 	temp.ChannelID = messageInput.ChannelID
-
-	if err := tools.DB.First(&temp).Error; err != nil{
-		w.WriteHeader(http.StatusServiceUnavailable)
+	tx := tools.DB.Begin()
+	if err := tx.First(&temp).Error; err != nil{
+		tx.Rollback()
+		w.WriteHeader(http.StatusUnauthorized)
 		checkError.ErrorCode=3
 		checkError.ErrorMessage=err.Error()
 		jsonResp, _ := json.Marshal(checkError)
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
-	fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa")
-	fmt.Println(temp.ChannelID)
-	fmt.Println(temp.UserID)
-	if err := tools.DB.Create(&messageInput).Error; err != nil{
-		w.WriteHeader(http.StatusServiceUnavailable)
+	var tempUser User
+	if err := tx.Where("user_id =?",temp.UserID).First(&tempUser).Error; err != nil{
+		tx.Rollback()
+		w.WriteHeader(http.StatusUnauthorized)
 		checkError.ErrorCode=3
 		checkError.ErrorMessage=err.Error()
 		jsonResp, _ := json.Marshal(checkError)
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
+	messageInput.Username = tempUser.Username
+	if err := tx.Create(&messageInput).Error; err != nil{
+		tx.Rollback()
+		w.WriteHeader(http.StatusUnauthorized)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	tx.Commit()
 	w.WriteHeader(http.StatusOK)
 	checkError.ErrorCode=0
 	checkError.ErrorMessage="success"
