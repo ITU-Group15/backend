@@ -572,7 +572,7 @@ func GetMessages(w http.ResponseWriter, r * http.Request){
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
-	if err := tools.DB.Where("user_id = ? AND channel_id = ?", messageInput.UserID, messageInput.ChannelID).Find(&msgArray).Error; err!=nil{
+	if err := tools.DB.Where("channel_id = ?", messageInput.ChannelID).Find(&msgArray).Error; err!=nil{
 		w.WriteHeader(http.StatusServiceUnavailable)
 		checkError.ErrorCode=3
 		checkError.ErrorMessage=err.Error()
