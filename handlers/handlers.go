@@ -284,6 +284,9 @@ func CreateChannel(w http.ResponseWriter, r * http.Request){
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
+
+
+
 	if channelInput.ChannelID != 0 || len(channelInput.ChannelName) <= 0{
 		w.WriteHeader(http.StatusUnauthorized)
 		checkError.ErrorMessage = "missing input"
@@ -317,6 +320,15 @@ func CreateChannel(w http.ResponseWriter, r * http.Request){
 	finalChannelInput.IsPrivate = channelInput.IsPrivate
 	finalChannelInput.AvailableDays = channelInput.AvailableDays
 
+	if err := tools.DB.Where("username = ?", channelInput.ChannelName).First(&channelInput).Error; err == nil{
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorMessage="This channel name already exists"
+		checkError.ErrorCode=3
+		jsonResp,_ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	
 	if err := tools.DB.Create(&finalChannelInput).Error; err!=nil{
 		w.WriteHeader(http.StatusServiceUnavailable)
 		checkError.ErrorCode=3
