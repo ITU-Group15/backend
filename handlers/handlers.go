@@ -319,8 +319,8 @@ func CreateChannel(w http.ResponseWriter, r * http.Request){
 	finalChannelInput.Password = channelInput.Password
 	finalChannelInput.IsPrivate = channelInput.IsPrivate
 	finalChannelInput.AvailableDays = channelInput.AvailableDays
-
-	if err := tools.DB.Where("channel_name = ?", channelInput.ChannelName).First(&channelInput).Error; err == nil{
+	var tempChannel Channel
+	if err := tools.DB.Where("channel_name = ?", finalChannelInput.ChannelName).First(&tempChannel).Error; err == nil{
 		w.WriteHeader(http.StatusBadRequest)
 		checkError.ErrorMessage="This channel name already exists"
 		checkError.ErrorCode=3
