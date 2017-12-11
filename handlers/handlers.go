@@ -518,7 +518,7 @@ func SendMessage(w http.ResponseWriter, r * http.Request){
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
-	messageInput.Username = tempUser.Username
+	messageInput.Username = tempUser.Nickname
 	if err := tx.Create(&messageInput).Error; err != nil{
 		tx.Rollback()
 		w.WriteHeader(http.StatusUnauthorized)
