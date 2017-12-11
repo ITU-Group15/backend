@@ -580,7 +580,7 @@ func SearchChannel(w http.ResponseWriter, r* http.Request){
 		return
 	}
 
-	if channelInput.ChannelID != 0, channelInput.UserID !=0, len(channelInput.AvailableDays) != 0,len(channelInput.Password) != 0, len(channelInput.ChannelName) <=0{
+	if channelInput.ChannelID != 0 || channelInput.UserID !=0 || len(channelInput.AvailableDays) != 0 || len(channelInput.Password) != 0 || len(channelInput.ChannelName) <=0{
 		checkError.ErrorCode = 2
 		checkError.ErrorMessage = "BAD REQUEST"
 		w.WriteHeader(http.StatusBadRequest)
