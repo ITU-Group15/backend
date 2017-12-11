@@ -49,6 +49,11 @@ type ErrorHandlerMessageArray struct{
 	ErrorCode int 			`json:"code"`
 	Messages[] Message			`json:"context,omitempty"`
 }
+type ErrorHandlerChannelArray struct{
+	ErrorMessage string	 	`json:"message"`
+	ErrorCode int 			`json:"code"`
+	Channels[] Channel			`json:"context,omitempty"`
+}
 
 type Channel struct{
 	ChannelID uint64				`json:"channelID,omitempty" gorm:"primary_key"`
@@ -58,10 +63,10 @@ type Channel struct{
 	ChannelName string 				`json:"channelName"`
 	UserID uint64					`json:"ownerID"`
 	IsPrivate bool					`json:"isPrivate"`
-	Password string					`json:"password"`
+	Password string					`json:"password,omitempty"`
 	AvailableDays pq.StringArray 	`json:"availableDays" gorm:"type:varchar(10)[]"`
-	StartTime time.Time				`json:"-"`
-	EndTime time.Time				`json:"-"`
+	StartTime time.Time				`json:"startTime"`
+	EndTime time.Time				`json:"endTime"`
 }
 
 type User struct {
@@ -382,6 +387,67 @@ func JoinChannel(w http.ResponseWriter, r * http.Request){
 	return
 }
 
+func GetChannels(w http.ResponseWriter, r * http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	token, _ := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	var checkError ErrorHandlerChannelArray
+	var channelMemberRequest ChannelMembers
+	var chnID []ChannelMembers
+	var chnl Channel
+	/*if err = json.NewDecoder(r.Body).Decode(&channelMemberRequest); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}*/
+	channelMemberRequest.UserID = uint64(claims["userID"].(float64))
+	//if channelMemberRequest.ChannelID <= 0{
+		tx := tools.DB.Begin()
+		if err := tx.Table("channel_members").Where("user_id = ?",channelMemberRequest.UserID).Find(&chnID).Error; err != nil{
+			tx.Rollback()
+			fmt.Println("burada mi patladin")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			checkError.ErrorCode=3
+			checkError.ErrorMessage=err.Error()
+			jsonResp, _ := json.Marshal(checkError)
+			fmt.Fprintf(w, string(jsonResp))
+			return
+		}
+		for i := 0; i<len(chnID) ; i++{
+			chnl.ChannelID = chnID[i].ChannelID
+			if err := tx.Find(&chnl).Error; err != nil{
+				tx.Rollback()
+				w.WriteHeader(http.StatusServiceUnavailable)
+				checkError.ErrorCode=3
+				checkError.ErrorMessage=err.Error()
+				jsonResp, _ := json.Marshal(checkError)
+				fmt.Fprintf(w, string(jsonResp))
+				return
+			}
+			chnl.Password = ""
+			checkError.Channels = append(checkError.Channels, chnl)
+		}
+		tx.Commit()
+		w.WriteHeader(http.StatusOK)
+		checkError.ErrorCode=0
+		checkError.ErrorMessage="success"
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	/*}
+	w.WriteHeader(http.StatusBadRequest)
+	checkError.ErrorCode = 2
+	checkError.ErrorMessage = "bad request"
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return*/
+}
+
 func SendMessage(w http.ResponseWriter, r * http.Request){
 	w.Header().Set("Content-Type", "application/json")
 	token, _ := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
@@ -409,6 +475,7 @@ func SendMessage(w http.ResponseWriter, r * http.Request){
 	var temp ChannelMembers
 	temp.UserID = messageInput.UserID
 	temp.ChannelID = messageInput.ChannelID
+
 	tx := tools.DB.Begin()
 	if err := tx.First(&temp).Error; err != nil{
 		tx.Rollback()
@@ -471,6 +538,18 @@ func GetMessages(w http.ResponseWriter, r * http.Request){
 		return
 	}
 	messageInput.UserID = uint64(claims["userID"].(float64))
+	var temp ChannelMembers
+	temp.UserID = messageInput.UserID
+	temp.ChannelID = messageInput.ChannelID
+
+	if err := tools.DB.First(&temp).Error; err != nil{
+		w.WriteHeader(http.StatusUnauthorized)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
 	if err := tools.DB.Where("user_id = ? AND channel_id = ?", messageInput.UserID, messageInput.ChannelID).Find(&msgArray).Error; err!=nil{
 		w.WriteHeader(http.StatusServiceUnavailable)
 		checkError.ErrorCode=3
