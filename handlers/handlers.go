@@ -31,7 +31,7 @@ var (
 
 type ContextStruct struct{
 	JwtToken	string 		`json:"jwtToken,omitempty"`
-	UserID		uint64		`json:"userID"`
+	UserID		uint64		`json:"userID,omitempty"`
 }
 
 type ErrorHandler struct{
@@ -234,7 +234,7 @@ func LoginFunc(w http.ResponseWriter, r *http.Request) {
 		checkLoginError.ErrorCode = 0
 		checkLoginError.ErrorMessage = "success"
 		checkLoginError.Context.JwtToken = tokenString
-		checkError.Context.UserID = requestingUser.UserID
+		checkLoginError.Context.UserID = requestingUser.UserID
 		jsonResp, _ := json.Marshal(checkLoginError)
 		fmt.Fprintf(w, string(jsonResp))
 		return
