@@ -611,7 +611,7 @@ func SearchChannel(w http.ResponseWriter, r* http.Request){
 		return
 	}
 	var matchingChannels []Channel
-	if err := tools.DB.Where("channel_name <> ?", channelInput.ChannelName).Find(&matchingChannels).Error; err != nil{
+	if err := tools.DB.Where("channel_name = ?", channelInput.ChannelName).Find(&matchingChannels).Error; err != nil{
 		w.WriteHeader(http.StatusUnauthorized)
 		checkError.ErrorCode=3
 		checkError.ErrorMessage=err.Error()
