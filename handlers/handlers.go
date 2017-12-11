@@ -163,6 +163,14 @@ func RegisterFunc(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, string(jsonResp))
 		return
 	}
+	if !tools.ValidateEmail(requestingUser.Username){
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorMessage="This is not a valid email address"
+		checkError.ErrorCode=2
+		jsonResp,_ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
 	if err := tools.DB.Where("username = ?", requestingUser.Username).First(&requestingUser).Error; err == nil{
 		w.WriteHeader(http.StatusBadRequest)
 		checkError.ErrorMessage="This username already exists"
@@ -297,8 +305,8 @@ func CreateChannel(w http.ResponseWriter, r * http.Request){
 	}
 	fmt.Println(channelInput.Start_Time)
 
-	channelInput.Start_Time = "1970-01-01T" + channelInput.Start_Time + ":00+03:00"
-	channelInput.End_Time = "1970-01-01T" + channelInput.End_Time + ":00+03:00"
+	channelInput.Start_Time = "1970-01-01T" + channelInput.Start_Time + ":00+00:00"
+	channelInput.End_Time = "1970-01-01T" + channelInput.End_Time + ":00+00:00"
 
 	finalChannelInput.StartTime, _ = time.Parse(time.RFC3339, channelInput.Start_Time)
 	finalChannelInput.EndTime, _ = time.Parse(time.RFC3339, channelInput.End_Time)
