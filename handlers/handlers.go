@@ -244,14 +244,14 @@ func LoginFunc(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(jsonResp))
 }
 
-func GetUsers(w http.ResponseWriter, r *http.Request) {
+/*func GetUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var checkError ErrorHandlerArray
 	tools.DB.Find(&checkError.Users)
 	jsonResp, _ := json.Marshal(checkError)
 	fmt.Fprintf(w, string(jsonResp))
 	return
-}
+}*/
 
 func CreateChannel(w http.ResponseWriter, r * http.Request){
 	w.Header().Set("Content-Type", "application/json")
@@ -562,6 +562,46 @@ func GetMessages(w http.ResponseWriter, r * http.Request){
 	checkError.ErrorCode=0
 	checkError.ErrorMessage="success"
 	checkError.Messages = msgArray
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}
+
+func SearchChannel(w http.ResponseWriter, r* http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	var channelInput Channel
+	var checkError ErrorHandlerChannelArray
+	if err = json.NewDecoder(r.Body).Decode(&channelInput); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+
+	if channelInput.ChannelID != 0, channelInput.UserID !=0, len(channelInput.AvailableDays) != 0,len(channelInput.Password) != 0, len(channelInput.ChannelName) <=0{
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = "BAD REQUEST"
+		w.WriteHeader(http.StatusBadRequest)
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	var matchingChannels []Channel
+	if err := tools.DB.Where("channel_name <> ?", channelInput.ChannelName).Find(&matchingChannels).Error; err != nil{
+		w.WriteHeader(http.StatusUnauthorized)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	checkError.ErrorCode=0
+	checkError.ErrorMessage="success"
+	checkError.Channels = matchingChannels
 	jsonResp, _ := json.Marshal(checkError)
 	fmt.Fprintf(w, string(jsonResp))
 	return
