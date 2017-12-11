@@ -27,6 +27,8 @@ func main() {
 	router.Handle("/send", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.SendMessage))))
 	router.Handle("/getmessages", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.GetMessages))))
 	router.Handle("/search", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.SearchChannel))))
+	router.Handle("/profile", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.Profile))))
+	router.Handle("/changeprofile", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.ChangeProfile))))
 
 
 	n.UseHandler(router)

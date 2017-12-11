@@ -31,6 +31,7 @@ var (
 
 type ContextStruct struct{
 	JwtToken	string 		`json:"jwtToken,omitempty"`
+	UserID		uint64		`json:"userID"`
 }
 
 type ErrorHandler struct{
@@ -47,12 +48,12 @@ type ErrorHandlerArray struct{
 type ErrorHandlerMessageArray struct{
 	ErrorMessage string	 	`json:"message"`
 	ErrorCode int 			`json:"code"`
-	Messages[] Message			`json:"context,omitempty"`
+	Messages[] Message		`json:"context,omitempty"`
 }
 type ErrorHandlerChannelArray struct{
 	ErrorMessage string	 	`json:"message"`
 	ErrorCode int 			`json:"code"`
-	Channels[] Channel			`json:"context,omitempty"`
+	Channels[] Channel		`json:"context,omitempty"`
 }
 
 type Channel struct{
@@ -233,6 +234,7 @@ func LoginFunc(w http.ResponseWriter, r *http.Request) {
 		checkLoginError.ErrorCode = 0
 		checkLoginError.ErrorMessage = "success"
 		checkLoginError.Context.JwtToken = tokenString
+		checkError.Context.UserID = requestingUser.UserID
 		jsonResp, _ := json.Marshal(checkLoginError)
 		fmt.Fprintf(w, string(jsonResp))
 		return
@@ -602,6 +604,82 @@ func SearchChannel(w http.ResponseWriter, r* http.Request){
 	checkError.ErrorCode=0
 	checkError.ErrorMessage="success"
 	checkError.Channels = matchingChannels
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}
+
+func Profile(w http.ResponseWriter, r* http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	token, _ := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	var checkError ErrorHandlerArray
+	var userRequest User
+	userRequest.UserID = uint64(claims["userID"].(float64))
+	if err := tools.DB.First(&userRequest).Error; err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	checkError.Users[0] = userRequest
+	w.WriteHeader(http.StatusOK)
+	checkError.ErrorCode=0
+	checkError.ErrorMessage="success"
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}
+
+func ChangeProfile(w http.ResponseWriter, r* http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	token, _ := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	var userInput User
+	var checkError ErrorHandlerArray
+	if err = json.NewDecoder(r.Body).Decode(&userInput); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if userInput.UserID != 0 || userInput.CreatedAt != userInput.UpdatedAt {
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	var tempUser User
+	if err := tools.DB.Where("user_id = ?", uint64(claims["userID"].(float64))).First(&tempUser).Error; err != nil{
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode = 2
+		checkError.ErrorMessage = err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	tempUser.Username = userInput.Username
+	tempUser.PhoneNumber = userInput.PhoneNumber
+	tempUser.Nickname = userInput.Nickname
+	tempUser.RealName = userInput.RealName
+	tempUser.RealSurname = userInput.RealSurname
+	if len(userInput.Password) > 0 {
+		tempUser.Password = userInput.Password
+	}
+	tools.DB.Save(&tempUser)
+	w.WriteHeader(http.StatusOK)
+	checkError.ErrorCode=0
+	checkError.ErrorMessage="success"
 	jsonResp, _ := json.Marshal(checkError)
 	fmt.Fprintf(w, string(jsonResp))
 	return
