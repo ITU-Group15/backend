@@ -54,3 +54,4 @@ fabric.properties
 .idea/modules.xml
 .idea/orangenotes.iml
 .idea/vcs.xml
+handlers/handlers_test.go
