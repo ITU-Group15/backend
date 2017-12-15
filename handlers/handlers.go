@@ -719,7 +719,7 @@ func DeleteChannel(w http.ResponseWriter, r* http.Request){
 	if err != nil {
 		checkError.ErrorCode=6
 		checkError.ErrorMessage=err.Error()
-		checkError.Context.ChannelID = -1
+		checkError.Context.ChannelID = 0
 		w.WriteHeader(http.StatusBadRequest)
 		jsonResp, _ := json.Marshal(checkError)
 		fmt.Fprintf(w, string(jsonResp))
