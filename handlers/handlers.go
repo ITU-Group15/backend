@@ -15,6 +15,8 @@ import (
 	"time"
 	"github.com/jinzhu/gorm"
 	"github.com/lib/pq"
+	"strconv"
+	"path"
 )
 
 const (
@@ -32,6 +34,7 @@ var (
 type ContextStruct struct{
 	JwtToken	string 		`json:"jwtToken,omitempty"`
 	UserID		uint64		`json:"userID,omitempty"`
+	ChannelID	uint64		`json:"channelID,omitempty"`
 }
 
 type ErrorHandler struct{
@@ -701,6 +704,76 @@ func ChangeProfile(w http.ResponseWriter, r* http.Request){
 	w.WriteHeader(http.StatusOK)
 	checkError.ErrorCode=0
 	checkError.ErrorMessage="success"
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}
+
+func DeleteChannel(w http.ResponseWriter, r* http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	//log.Println(string(logString))
+	var chnInput Channel
+	var checkError ErrorHandler
+	newID, err := strconv.ParseUint(path.Base(r.URL.Path),10,64)
+	if err != nil {
+		checkError.ErrorCode=6
+		checkError.ErrorMessage=err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	token, err := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	chnInput.ChannelID = newID
+
+	var temp ChannelMembers
+	temp.UserID = uint64(claims["userID"].(float64))
+	temp.ChannelID = chnInput.ChannelID
+
+	tx := tools.DB.Begin()
+	if err := tx.First(&chnInput).Error; err != nil{
+		tx.Rollback()
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if chnInput.UserID != uint64(claims["userID"].(float64)){
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if err := tx.Delete(&chnInput).Error; err!=nil{
+		tx.Rollback()
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if err := tx.Delete(&temp).Error; err!=nil{
+		tx.Rollback()
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	tx.Commit()
+	w.WriteHeader(http.StatusOK)
+	checkError.ErrorCode=0
+	checkError.ErrorMessage="success"
+	checkError.Context.ChannelID = newID
 	jsonResp, _ := json.Marshal(checkError)
 	fmt.Fprintf(w, string(jsonResp))
 	return
