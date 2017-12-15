@@ -24,6 +24,7 @@ func main() {
 	router.Handle("/create", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.CreateChannel))))
 	router.Handle("/channels", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.GetChannels))))
 	router.Handle("/delete/{id}", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.DeleteChannel))))
+	router.Handle("/channel/{id}", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.ChannelInfo))))
 
 	router.Handle("/send", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.SendMessage))))
 	router.Handle("/getmessages", negroni.New(negroni.HandlerFunc(handlers.AuthMiddleware), negroni.Wrap(http.HandlerFunc(handlers.GetMessages))))

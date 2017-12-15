@@ -35,6 +35,7 @@ type ContextStruct struct{
 	JwtToken	string 		`json:"jwtToken,omitempty"`
 	UserID		uint64		`json:"userID,omitempty"`
 	ChannelID	uint64		`json:"channelID,omitempty"`
+	Nickname	[]string	`json:"nickname,omitempty"`
 }
 
 type ErrorHandler struct{
@@ -770,6 +771,72 @@ func DeleteChannel(w http.ResponseWriter, r* http.Request){
 		jsonResp, _ := json.Marshal(checkError)
 		fmt.Fprintf(w, string(jsonResp))
 		return
+	}
+	tx.Commit()
+	w.WriteHeader(http.StatusOK)
+	checkError.ErrorCode=0
+	checkError.ErrorMessage="success"
+	jsonResp, _ := json.Marshal(checkError)
+	fmt.Fprintf(w, string(jsonResp))
+	return
+}
+
+func ChannelInfo(w http.ResponseWriter, r* http.Request){
+	var checkError ErrorHandler
+	var channelMembers []ChannelMembers
+	newID, err := strconv.ParseUint(path.Base(r.URL.Path),10,64)
+	if err != nil {
+		checkError.ErrorCode=6
+		checkError.ErrorMessage=err.Error()
+		checkError.Context.ChannelID = 0
+		w.WriteHeader(http.StatusBadRequest)
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	token, err := request.ParseFromRequest(r, request.OAuth2Extractor, func(token *jwt.Token) (interface{}, error) {
+		return publicKey, nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+
+	var temp ChannelMembers
+	temp.UserID = uint64(claims["userID"].(float64))
+	temp.ChannelID = newID
+
+	tx := tools.DB.Begin()
+
+	if err := tx.First(&temp).Error; err != nil{
+		tx.Rollback()
+		w.WriteHeader(http.StatusUnauthorized)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	if err := tx.Where("channel_id = ?",newID).Find(&channelMembers).Error; err != nil{
+		tx.Rollback()
+		w.WriteHeader(http.StatusBadRequest)
+		checkError.ErrorCode=3
+		checkError.ErrorMessage=err.Error()
+		jsonResp, _ := json.Marshal(checkError)
+		fmt.Fprintf(w, string(jsonResp))
+		return
+	}
+	var tempUser User
+	for i := 0; i < len(channelMembers); i++{
+		tempUser.UserID = channelMembers[i].UserID
+		if err := tx.First(&tempUser).Error; err != nil{
+			tx.Rollback()
+			w.WriteHeader(http.StatusBadRequest)
+			checkError.ErrorCode=3
+			checkError.ErrorMessage=err.Error()
+			checkError.Context.Nickname = checkError.Context.Nickname[:0]
+			jsonResp, _ := json.Marshal(checkError)
+			fmt.Fprintf(w, string(jsonResp))
+			return
+		}
+		checkError.Context.Nickname = append(checkError.Context.Nickname, tempUser.Nickname)
 	}
 	tx.Commit()
 	w.WriteHeader(http.StatusOK)
