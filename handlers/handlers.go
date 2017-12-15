@@ -714,10 +714,12 @@ func DeleteChannel(w http.ResponseWriter, r* http.Request){
 	//log.Println(string(logString))
 	var chnInput Channel
 	var checkError ErrorHandler
+
 	newID, err := strconv.ParseUint(path.Base(r.URL.Path),10,64)
 	if err != nil {
 		checkError.ErrorCode=6
 		checkError.ErrorMessage=err.Error()
+		checkError.Context.ChannelID = -1
 		w.WriteHeader(http.StatusBadRequest)
 		jsonResp, _ := json.Marshal(checkError)
 		fmt.Fprintf(w, string(jsonResp))
@@ -728,7 +730,7 @@ func DeleteChannel(w http.ResponseWriter, r* http.Request){
 	})
 	claims := token.Claims.(jwt.MapClaims)
 	chnInput.ChannelID = newID
-
+	checkError.Context.ChannelID = newID
 	var temp ChannelMembers
 	temp.UserID = uint64(claims["userID"].(float64))
 	temp.ChannelID = chnInput.ChannelID
@@ -773,7 +775,6 @@ func DeleteChannel(w http.ResponseWriter, r* http.Request){
 	w.WriteHeader(http.StatusOK)
 	checkError.ErrorCode=0
 	checkError.ErrorMessage="success"
-	checkError.Context.ChannelID = newID
 	jsonResp, _ := json.Marshal(checkError)
 	fmt.Fprintf(w, string(jsonResp))
 	return
